@@ -16,9 +16,9 @@ lazy_static!{
 /// The Server is at the top of the plugin chain
 pub struct Server {
     /// The plugin loader
-    plugin_loader:  PluginLoader,
+    pub(crate) plugin_loader:  PluginLoader,
     /// All registered Database backends
-    databases:      Vec<Box<dyn Database>>
+    pub(crate) databases:      Vec<Box<dyn Database>>
 }
 
 impl Server {
@@ -26,11 +26,9 @@ impl Server {
     /// Initialize the Server
     ///
     /// # Errors
-    /// - If [`crate::plugin::loader::PluginLoader::load_plugins`] fails
     /// - if locking SERVER fails
-    pub(crate) fn init(plugin_dir: &Path) -> Result<()> {
-        let plugin_loader = PluginLoader::load_plugins(plugin_dir)?;
-
+    pub(crate) fn init() -> Result<()> {
+        let plugin_loader = PluginLoader::default();
         let this = Self {
             plugin_loader,
             databases: Vec::default()
@@ -46,8 +44,44 @@ impl Server {
         Ok(())
     }
 
+    /// Load all plugins in `plugin_dir`
+    ///
+    /// # Errors
+    /// - If [`crate::plugin::loader::PluginLoader::load_plugins`] fails
+    pub(crate) fn load_plugins(&mut self, plugin_dir: &Path) -> Result<()> {
+        let loader = &mut self.plugin_loader;
+        loader.load_plugins(plugin_dir)
+    }
+
     /// Register a database backend
     pub(crate) fn regiser_database_backend(&mut self, database: Box<dyn Database>) {
         self.databases.push(database)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use tempfile::tempdir;
+
+    #[test]
+    fn server_init() {
+        Server::init().unwrap();
+        let lock = SERVER.lock().unwrap();
+        let server = lock.borrow();
+
+        assert!(server.is_some());
+    }
+
+    #[test]
+    fn load_plugins() {
+        Server::init().unwrap();
+        let lock = SERVER.lock().unwrap();
+        let mut server_ref = lock.borrow_mut();
+        let server = server_ref.as_mut().unwrap();
+
+        let tmpdir = tempdir().unwrap();
+        server.load_plugins(tmpdir.path()).unwrap();
+        assert!(server.plugin_loader.plugins.is_empty());
     }
 }

@@ -20,7 +20,7 @@ pub struct LoadedPlugin {
 #[derive(Default, Debug)]
 pub struct PluginLoader {
     /// The plugins that were loaded by this PluginLoader
-    plugins: Vec<LoadedPlugin>
+    pub(crate) plugins: Vec<LoadedPlugin>
 }
 
 impl PluginLoader {
@@ -34,7 +34,7 @@ impl PluginLoader {
     /// - If reading the directory contents failed
     /// - If iterating over the directory contents failed
     /// - If loading an individual Plugin failed
-    pub(crate) fn load_plugins(path: &Path) -> Result<Self> {
+    pub(crate) fn load_plugins(&mut self, path: &Path) -> Result<()> {
         if !path.exists() {
             return Err(Error::new(ErrorKind::PluginError, format!("Provided plugin path {:?} does not exist.", &path)));
         }
@@ -42,8 +42,6 @@ impl PluginLoader {
         if !path.is_dir() {
             return Err(Error::new(ErrorKind::PluginError, format!("Provided plugins path {:?} is not a directory.", &path)));
         }
-
-        let mut this = Self::default();
 
         let rd = match fs::read_dir(&path) {
             Ok(rd) => rd,
@@ -58,12 +56,12 @@ impl PluginLoader {
 
             let path = de.path();
             if path.ends_with(".so") || path.ends_with(".dll") || path.ends_with(".dylib") {
-                let plugin = this.load_plugin(&path)?;
-                this.plugins.push(plugin);
+                let plugin = self.load_plugin(&path)?;
+                self.plugins.push(plugin);
             }
         }
 
-        Ok(this)
+        Ok(())
     }
 
     /// Load a Plugin at the provided Path
@@ -82,6 +80,9 @@ impl PluginLoader {
                 Err(e) => return Err(Error::new(ErrorKind::PluginError, format!("Failed to create library for plugin at {:?}: {:?}", &path, e)))
             };
 
+            // The type returned by _create_plugin is supposed to impl Plugin
+            // So we can safely cast from *mut T to *mut dyn Plugin
+            // A clear example showing that this works: https://play.rust-lang.org/?version=stable&mode=debug&edition=2018&gist=633ee58a4c267f03080e31f752d8c134
             let constructor: Symbol<'_, unsafe fn() -> *mut dyn Plugin> = match lib.get(b"_create_plugin") {
                 Ok(s) => s,
                 Err(_) => return Err(Error::new(ErrorKind::PluginError, format!("Plugin {:?} does not export the symbol '_create_plugin'", &path)))

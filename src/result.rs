@@ -16,7 +16,6 @@ impl Error {
     /// Create a new Error
     pub fn new<S: AsRef<str>>(kind: ErrorKind, message: S) -> Self {
         let message = message.as_ref().to_string();
-
         Self { kind, message }
     }
 }

@@ -15,3 +15,7 @@ lazy_static = "1.4.0"
 [dependencies.serde]
 version = "1.0.126"
 features = ["derive"]
+
+[dev-dependencies]
+# Used in some unit tests
+tempfile = "3.2.0"
