@@ -1,8 +1,8 @@
-name: Cargo Clippy
+name: Cargo Test
 on: [push, pull_request]
 
 jobs:
-  clippy:
+  test:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
@@ -11,9 +11,4 @@ jobs:
       with:
           toolchain: stable
           default: true
-          components: clippy
-          
-    - uses: actions-rs/clippy-check@v1
-      with:
-        token: ${{ secrets.GITHUB_TOKEN }}
-        args: --all-features
+    - run: cargo test
