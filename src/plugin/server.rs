@@ -6,7 +6,7 @@ use crate::result::{Result, Error, ErrorKind};
 use lazy_static::lazy_static;
 use std::sync::{Mutex, Arc};
 use std::cell::RefCell;
-use std::path::Path;
+use std::path::{PathBuf, Path};
 
 lazy_static!{
     /// Global instance of Server
@@ -57,12 +57,37 @@ impl Server {
     pub(crate) fn regiser_database_backend(&mut self, database: Box<dyn Database>) {
         self.databases.push(database)
     }
+
+    /// Register the default backends. A backend will only be registered if _no_ backend has been registered yet. This function should be called _after_ all Plugins have been loaded.
+    pub(crate) fn register_default_backends(&mut self) {
+        if self.databases.is_empty() {
+            let database = super::default::database::DefaultDatabase::new();
+            self.regiser_database_backend(Box::new(database))
+        }
+    }
+
+    /// Get the data folder in which Encoaster's data for the backend server is stored.
+    /// The folder might not exist yet!
+    pub fn get_data_folder() -> PathBuf {
+        #[cfg(unix)] let path = "/var/encoaster/";
+        #[cfg(windows)] let path = r#"C:\Program Files\Encoaster\"#;
+
+        PathBuf::from(path)
+    }
 }
 
 #[cfg(test)]
 mod test {
     use super::*;
     use tempfile::tempdir;
+
+    /// Create a default instance of Server
+    fn local_default_server() -> Server {
+        Server {
+            plugin_loader: Default::default(),
+            databases: Vec::default()
+        }
+    }
 
     #[test]
     fn server_init() {
@@ -75,13 +100,30 @@ mod test {
 
     #[test]
     fn load_plugins() {
-        Server::init().unwrap();
-        let lock = SERVER.lock().unwrap();
-        let mut server_ref = lock.borrow_mut();
-        let server = server_ref.as_mut().unwrap();
+        let mut server = local_default_server();
 
         let tmpdir = tempdir().unwrap();
         server.load_plugins(tmpdir.path()).unwrap();
         assert!(server.plugin_loader.plugins.is_empty());
+    }
+
+    #[test]
+    fn register_defaults_with_database() {
+        let mut server = local_default_server();
+
+        let default_databse = super::super::default::database::DefaultDatabase::new();
+        server.regiser_database_backend(Box::new(default_databse));
+
+        server.register_default_backends();
+
+        assert_eq!(server.databases.len(), 1);
+    }
+
+    #[test]
+    fn register_defaults_without_database() {
+        let mut server = local_default_server();
+
+        server.register_default_backends();
+        assert_eq!(server.databases.len(), 1);
     }
 }

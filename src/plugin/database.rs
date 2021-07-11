@@ -3,6 +3,7 @@ use crate::result::Result;
 
 use std::collections::HashMap;
 use std::fmt::Debug;
+use std::ops::Deref;
 
 /// SQL Column value
 #[derive(Debug, Clone)]
@@ -15,6 +16,30 @@ pub enum SqlValue {
     Float(f64),
     /// Boolean value
     Boolean(bool)
+}
+
+impl From<String> for SqlValue {
+    fn from(a: String) -> Self {
+        Self::Text(a)
+    }
+}
+
+impl From<i64> for SqlValue {
+    fn from(a: i64) -> Self {
+        Self::Long(a)
+    }
+}
+
+impl From<bool> for SqlValue {
+    fn from(a: bool) -> Self {
+        Self::Boolean(a)
+    }
+}
+
+impl From<f64> for SqlValue {
+    fn from(a: f64) -> Self {
+        Self::Float(a)
+    }
 }
 
 /// SQL Column type
@@ -38,7 +63,7 @@ pub trait Database: Debug + Send + Sync {
     /// This is upto the implementor, usually Err is returned when:
     /// - Creating the database connection failed
     /// - Querying the database failed
-    fn query(&self, table: &str, cols: &[(&str, ValueType)], conditions: &[(&str, SqlValue)]) -> Result<HashMap<String, SqlValue>>;
+    fn query(&self, table: &str, cols: &[(&str, ValueType)], conditions: &[(&str, bool, SqlValue)]) -> Result<Vec<HashMap<String, SqlValue>>>;
 
     /// Insert a row into the database
     ///
@@ -54,5 +79,5 @@ pub trait Database: Debug + Send + Sync {
     /// This is upto the implementor, usually Err is returned when:
     /// - Creating the database connection failed
     /// - Querying the database failed
-    fn update(&self, table: &str, cols: &[(&str, ValueType)], conditions: &[(&str, SqlValue)]) -> Result<()>;
+    fn update(&self, table: &str, cols: &[(&str, ValueType)], conditions: &[(&str, bool, SqlValue)]) -> Result<()>;
 }

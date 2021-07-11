@@ -6,6 +6,8 @@ use database::Database;
 use std::fmt::Debug;
 
 pub(crate) mod loader;
+pub(crate) mod default;
+
 pub mod server;
 pub mod database;
 
